@@ -3,3 +3,9 @@
 
 # macOS
 .DS_Store
+
+## Instructor-provided files that I don't modify
+
+# Lab 0
+lab0/Makefile
+lab0/test_lab0.py
