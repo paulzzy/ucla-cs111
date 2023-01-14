@@ -1,22 +1,34 @@
-# A Kernel Seedling
+# proc_count: A Kernel Seedling
 
-One sentence description
+proc_count is a kernel module that creates /proc/count, which returns the
+number of running processes.
+
+Before following any steps below, make sure the working directory contains the
+source code (e.g. Makefile).
 
 ## Building
 
-Explain how to build your kernel module
+Run `make` to build the kernel module. One of the output files should be
+proc_count.ko.
 
 ## Running
 
-Explain how to run your kernel module and what to expect
+Insert the kernel module with `sudo insmod proc_count.ko`. Use `cat /proc/count`
+to display the number of running processes.
 
 ## Cleaning Up
 
-Explain how to remove your kernel module and clean up the code
+Remove the kernel module with `sudo rmmod proc_count`. Clean up build artifacts
+by running `make clean`.
 
 ## Testing
 
-Report which kernel release version you tested your module on
-(hint: use `uname`, check for options with `man uname`).
-It should match release numbers as seen on https://www.kernel.org/.
+proc_count was tested on kernel version 5.14.8-arch1-1.
 
+Use `python -m unittest` to test proc_count.
+
+Use `sudo dmesg | grep proc_count` to check for successful insertion or removal
+of proc_count.
+
+Use `modinfo proc_count.ko` to check information about the built kernel module.
+E.g., the "vermagic" line details which kernel version the module was built for.
