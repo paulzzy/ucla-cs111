@@ -6,14 +6,20 @@
 
 static struct proc_dir_entry *proc_entry;
 
-static int count_proc_show(struct seq_file *m, void *v) {
-  seq_printf(m, "LOL DOES THIS APPEAR");
+static int proc_count_show(struct seq_file *m, void *v) {
+  int proc_count = 0;
+
+  struct task_struct *task;
+
+  for_each_process(task) { proc_count++; }
+
+  seq_printf(m, "%d\n", proc_count);
   return 0;
 }
 
 static int __init proc_count_init(void) {
   pr_info("proc_count: init\n");
-  proc_entry = proc_create_single("count", 0, NULL, count_proc_show);
+  proc_entry = proc_create_single("count", 0, NULL, proc_count_show);
 
   if (!proc_entry) {
     return -ENOMEM;
