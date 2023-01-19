@@ -25,7 +25,8 @@ by running `make clean`.
 
 proc_count was tested on kernel version 5.14.8-arch1-1.
 
-Use `python -m unittest` to test proc_count.
+Use `python -m unittest` to test proc_count. Or ensure the outputs of `cat
+/proc/count` and `ps aux | wc -l` are the same.
 
 Use `sudo dmesg | grep proc_count` to check for successful insertion or removal
 of proc_count.
