@@ -4,27 +4,29 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-struct PipeWrapper {
-  int fds[2];
-  int read_fd;
-  int write_fd;
-};
+enum PipeAction { READ = 0, WRITE = 1 };
 
-enum PipeAction { PIPE_READ, PIPE_WRITE };
+// Short for "debug print pipe" because I don't like typing
+void dpp(int* pipe) {
+  // Cast to void to silence cert-err33-c clang-tidy warning
+  (void)fprintf(stderr, "pipe: read %d, write %d\n", pipe[READ], pipe[WRITE]);
+}
 
-int duplicate_fd_wrapper(struct PipeWrapper* pipe, enum PipeAction action) {
-  int pipe_fd = (action == PIPE_READ) ? pipe->read_fd : pipe->write_fd;
-  int stdio_fd = (action == PIPE_READ) ? STDIN_FILENO : STDOUT_FILENO;
+void copy_pipe(const int* source, int* dest) {
+  dest[READ] = source[READ];
+  dest[WRITE] = source[WRITE];
+}
+
+void duplicate_fd_wrapper(int* pipe, enum PipeAction action) {
+  int pipe_fd = (action == READ) ? pipe[READ] : pipe[WRITE];
+  int stdio_fd = (action == READ) ? STDIN_FILENO : STDOUT_FILENO;
 
   if (dup2(pipe_fd, stdio_fd) == -1) {
     exit(errno);
   }
 
-  if (close(pipe->read_fd) == -1 || close(pipe->write_fd) == -1) {
-    exit(errno);
-  };
-
-  return 0;
+  close(pipe[READ]);
+  close(pipe[WRITE]);
 }
 
 int wait_wrapper(int child_pid) {
@@ -35,8 +37,6 @@ int wait_wrapper(int child_pid) {
   };
 
   if (WIFEXITED(child_status)) {
-    printf("yay waited for %d with exit %d\n", child_pid,
-           WEXITSTATUS(child_status));
     return WEXITSTATUS(child_status);
   }
 
@@ -57,44 +57,35 @@ int main(int argc, char* argv[]) {
     return EXIT_SUCCESS;
   }
 
-  struct PipeWrapper first_pipe;
-  struct PipeWrapper second_pipe;
-  struct PipeWrapper* current_pipe = &first_pipe;
-
-  if ((pipe(first_pipe.fds) == -1) || (pipe(second_pipe.fds) == -1)) {
-    return errno;
-  }
-
-  first_pipe.read_fd = first_pipe.fds[0];
-  first_pipe.write_fd = first_pipe.fds[1];
-  second_pipe.read_fd = second_pipe.fds[0];
-  second_pipe.write_fd = second_pipe.fds[1];
+  int prev_pipe[2] = {0};
+  int current_pipe[2] = {0};
 
   for (int i = 1; i < argc; i++) {
+    if (pipe(current_pipe) == -1) {
+      return errno;
+    }
+
     int child_pid = fork();
     switch (child_pid) {
       case -1:
         return errno;
 
       case 0:
-        // `stdin` is read from pipe, except for the first command. That reads
-        // directly from `stdin`.
+        // `stdin` is read from pipe, except for the first command. That
+        // reads directly from `stdin`.
         //
-        // Similarly, `stdout` is written to pipe, except for the last command.
-        // That writes directly to `stdout`.
+        // Similarly, `stdout` is written to pipe, except for the last
+        // command. That writes directly to `stdout`.
         if (i == 1) {
           // `stdin` is not modified. Only `stdout` is redirected.
-          duplicate_fd_wrapper(current_pipe, PIPE_WRITE);
+          duplicate_fd_wrapper(current_pipe, WRITE);
         } else if (i == argc - 1) {
           // `stdout` is not modified. Only `stdin` is redirected.
-          duplicate_fd_wrapper(current_pipe, PIPE_READ);
+          duplicate_fd_wrapper(prev_pipe, READ);
         } else {
-          duplicate_fd_wrapper(current_pipe, PIPE_READ);
-          // Switch current pipe so writes go to a different pipe
-          current_pipe = current_pipe->write_fd == first_pipe.write_fd
-                             ? &second_pipe
-                             : &first_pipe;
-          duplicate_fd_wrapper(current_pipe, PIPE_WRITE);
+          duplicate_fd_wrapper(prev_pipe, READ);
+          // Writes go to a different pipe
+          duplicate_fd_wrapper(current_pipe, WRITE);
         }
 
         if (execlp(argv[i], argv[i], NULL) == -1) {
@@ -103,17 +94,17 @@ int main(int argc, char* argv[]) {
         break;
 
       default:
-        // printf("boutta wait for %d\n", child_pid);
-        // close(current_pipe->write_fd);
-        // wait_wrapper(child_pid);
+        close(current_pipe[WRITE]);
+
+        int child_status = wait_wrapper(child_pid);
+        if (child_status != EXIT_SUCCESS) {
+          return child_status;
+        }
         break;
     }
-  }
 
-  close(first_pipe.read_fd);
-  close(first_pipe.write_fd);
-  close(second_pipe.read_fd);
-  close(second_pipe.write_fd);
+    copy_pipe(current_pipe, prev_pipe);
+  }
 
   return EXIT_SUCCESS;
 }
