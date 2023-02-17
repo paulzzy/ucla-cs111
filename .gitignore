@@ -11,7 +11,12 @@ lab0/Makefile
 lab0/test_lab0.py
 
 # Lab 1
-
 lab1/Makefile
 lab1/README.md
 lab1/test_lab1.py
+
+# Lab 2
+lab2/Makefile
+lab2/processes.txt
+lab2/README.md
+lab2/test_lab2.py
