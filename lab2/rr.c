@@ -9,6 +9,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#define debug_print(fmt, ...)                                           \
+  do {                                                                  \
+    if (DEBUG)                                                          \
+      fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, \
+              __VA_ARGS__);                                             \
+  } while (0)
+
 typedef uint32_t u32;
 typedef int32_t i32;
 
@@ -20,6 +27,8 @@ struct process {
   TAILQ_ENTRY(process) pointers;
 
   /* Additional fields here */
+  u32 remaining_time;
+  bool first_run;
   /* End of "Additional fields here" */
 };
 
@@ -41,6 +50,13 @@ static struct process *remove_and_get_next(struct process_list *list,
   // printf("curr pid: %d\n", current->pid);
   // printf("next pid: %d\n", next == NULL ? -1 : next->pid);
   return next;
+}
+
+static struct process *insert_and_get_current(struct process_list *list,
+                                              struct process *new,
+                                              struct process *current) {
+  TAILQ_INSERT_TAIL(list, new, pointers);
+  return current == NULL ? TAILQ_FIRST(list) : current;
 }
 
 u32 next_int(const char **data, const char *data_end) {
@@ -130,6 +146,8 @@ void init_processes(const char *path, struct process **process_data,
     (*process_data)[i].pid = next_int(&data, data_end);
     (*process_data)[i].arrival_time = next_int(&data, data_end);
     (*process_data)[i].burst_time = next_int(&data, data_end);
+    (*process_data)[i].remaining_time = (*process_data)[i].burst_time;
+    (*process_data)[i].first_run = true;
   }
 
   munmap((void *)data, size);
@@ -153,7 +171,7 @@ int main(int argc, char *argv[]) {
   u32 total_response_time = 0;
 
   /* Your code here */
-  if (size > 0) {
+  if (size > 0 && quantum_length > 0) {
     u32 current_time = 0;
     u32 run_time = 0;
 
@@ -168,44 +186,45 @@ int main(int argc, char *argv[]) {
     //
     // "Runs" a process at the end, so all checking happens at the start
     while (queue_idx < size || (queue_idx == size && !TAILQ_EMPTY(&list))) {
+      // printf("%d:\n", current_time);
       // Add new process to list if now is arrival time
       if (queue_idx < size && data[queue_idx].arrival_time == current_time) {
-        TAILQ_INSERT_TAIL(&list, &data[queue_idx], pointers);
-        queue_idx++;
+        current = insert_and_get_current(&list, &data[queue_idx], current);
 
-        // Run new process if it's the only process
-        if (current == NULL) {
-          current = TAILQ_FIRST(&list);
-        }
+        queue_idx++;
       }
 
       // Switch to next process if current is finished
-      if (current->burst_time == 0) {
+      if (current->remaining_time == 0) {
+        total_waiting_time +=
+            current_time - current->arrival_time - current->burst_time;
         current = remove_and_get_next(&list, current);
         run_time = 0;
-
-        // Update total response time if there are more runnable processes
-        // if (current != NULL) {
-        //   printf("pid %d arrived: %d, now: %d\n", current->pid,
-        //          current->arrival_time, current_time);
-        //   total_response_time += current_time - current->arrival_time;
-        // }
       }
 
       // Interrupt process when it uses up a quantum
       if (run_time == quantum_length) {
         struct process *timed_out_process = current;
         current = remove_and_get_next(&list, current);
-        TAILQ_INSERT_TAIL(&list, timed_out_process, pointers);
+        current = insert_and_get_current(&list, timed_out_process, current);
+
         run_time = 0;
       }
 
       // "Run" current process if it exists
       if (current != NULL) {
-        current->burst_time--;
+        if (current->first_run == true) {
+          // printf("pid %d arrived: %d, now: %d\n", current->pid,
+          //        current->arrival_time, current_time);
+          total_response_time += current_time - current->arrival_time;
+          current->first_run = false;
+        }
+
+        current->remaining_time--;
         run_time++;
       }
       current_time++;
+      // printf("run_time: %d\n", run_time);
     }
   }
 
