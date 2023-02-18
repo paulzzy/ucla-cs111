@@ -194,8 +194,9 @@ int main(int argc, char *argv[]) {
         queue_idx++;
       }
 
-      // Switch to next process if current is finished
-      if (current->remaining_time == 0) {
+      // Switch to next process if current is finished. Null check is necessary
+      // because current does not exist when the list is empty.
+      if (current != NULL && current->remaining_time == 0) {
         total_waiting_time +=
             current_time - current->arrival_time - current->burst_time;
         current = remove_and_get_next(&list, current);
