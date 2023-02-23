@@ -20,3 +20,15 @@ lab2/Makefile
 lab2/processes.txt
 lab2/README.md
 lab2/test_lab2.py
+
+# Lab 3
+lab3/hash-table-base.c
+lab3/hash-table-base.h
+lab3/hash-table-common.c
+lab3/hash-table-common.h
+lab3/hash-table-tester.c
+lab3/hash-table-v1.h
+lab3/hash-table-v2.h
+lab3/Makefile
+lab3/README.md
+lab3/test_lab3.py
