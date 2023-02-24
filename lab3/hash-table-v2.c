@@ -32,9 +32,6 @@ struct hash_table_v2 *hash_table_v2_create() {
 
     int error = pthread_mutex_init(&entry->mutex, NULL);
     if (error != 0) {
-      for (size_t j = 0; j < i; j++) {
-        pthread_mutex_destroy(&hash_table->entries[j].mutex);
-      }
       exit(error);
     }
   }
@@ -81,9 +78,6 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key,
 
   int error = pthread_mutex_lock(&hash_table_entry->mutex);
   if (error != 0) {
-    for (size_t i = 0; i < HASH_TABLE_CAPACITY; i++) {
-      pthread_mutex_destroy(&hash_table->entries[i].mutex);
-    }
     exit(error);
   }
 
@@ -103,9 +97,6 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key,
 
   error = pthread_mutex_unlock(&hash_table_entry->mutex);
   if (error != 0) {
-    for (size_t i = 0; i < HASH_TABLE_CAPACITY; i++) {
-      pthread_mutex_destroy(&hash_table->entries[i].mutex);
-    }
     exit(error);
   }
 }
