@@ -16,15 +16,12 @@ SLIST_HEAD(list_head, list_entry);
 
 struct hash_table_entry {
   struct list_head list_head;
-  uint32_t index;
+  pthread_mutex_t mutex;
 };
 
 struct hash_table_v2 {
   struct hash_table_entry entries[HASH_TABLE_CAPACITY];
 };
-
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-static pthread_mutex_t mutexes[HASH_TABLE_CAPACITY];
 
 struct hash_table_v2 *hash_table_v2_create() {
   struct hash_table_v2 *hash_table = calloc(1, sizeof(struct hash_table_v2));
@@ -32,10 +29,12 @@ struct hash_table_v2 *hash_table_v2_create() {
   for (size_t i = 0; i < HASH_TABLE_CAPACITY; ++i) {
     struct hash_table_entry *entry = &hash_table->entries[i];
     SLIST_INIT(&entry->list_head);
-    entry->index = i;
 
-    int error = pthread_mutex_init(&mutexes[i], NULL);
+    int error = pthread_mutex_init(&entry->mutex, NULL);
     if (error != 0) {
+      for (size_t j = 0; j < i; j++) {
+        pthread_mutex_destroy(&hash_table->entries[j].mutex);
+      }
       exit(error);
     }
   }
@@ -80,9 +79,11 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key,
   struct hash_table_entry *hash_table_entry =
       get_hash_table_entry(hash_table, key);
 
-  pthread_mutex_t *mutex = &mutexes[hash_table_entry->index];
-  int error = pthread_mutex_lock(mutex);
+  int error = pthread_mutex_lock(&hash_table_entry->mutex);
   if (error != 0) {
+    for (size_t i = 0; i < HASH_TABLE_CAPACITY; i++) {
+      pthread_mutex_destroy(&hash_table->entries[i].mutex);
+    }
     exit(error);
   }
 
@@ -100,8 +101,11 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table, const char *key,
   list_entry->value = value;
   SLIST_INSERT_HEAD(list_head, list_entry, pointers);
 
-  error = pthread_mutex_unlock(mutex);
+  error = pthread_mutex_unlock(&hash_table_entry->mutex);
   if (error != 0) {
+    for (size_t i = 0; i < HASH_TABLE_CAPACITY; i++) {
+      pthread_mutex_destroy(&hash_table->entries[i].mutex);
+    }
     exit(error);
   }
 }
@@ -127,7 +131,7 @@ void hash_table_v2_destroy(struct hash_table_v2 *hash_table) {
       free(list_entry);
     }
 
-    int error = pthread_mutex_destroy(&mutexes[i]);
+    int error = pthread_mutex_destroy(&entry->mutex);
     if (error != 0) {
       exit(error);
     }

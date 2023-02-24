@@ -77,6 +77,7 @@ void hash_table_v1_add_entry(struct hash_table_v1 *hash_table, const char *key,
                              uint32_t value) {
   int error = pthread_mutex_lock(&mutex);
   if (error != 0) {
+    pthread_mutex_destroy(&mutex);
     exit(error);
   }
 
@@ -98,6 +99,7 @@ void hash_table_v1_add_entry(struct hash_table_v1 *hash_table, const char *key,
 
   error = pthread_mutex_unlock(&mutex);
   if (error != 0) {
+    pthread_mutex_destroy(&mutex);
     exit(error);
   }
 }
