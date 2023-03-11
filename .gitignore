@@ -32,3 +32,9 @@ lab3/hash-table-v2.h
 lab3/Makefile
 lab3/README.md
 lab3/test_lab3.py
+
+# Lab 4
+lab4/.gitignore
+lab4/Makefile
+lab4/README.md
+lab4/test_lab4.py
