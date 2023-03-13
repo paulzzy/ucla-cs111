@@ -77,6 +77,7 @@ const u32 NUM_USED_DIRS = 2;
 
 #define EXT2_NAME_LEN 255
 const u32 EXT2_SUPER_MAGIC = 0xEF53;
+const u32 EXT2_ERRORS_CONTINUE = 1;
 
 const u32 BITS_PER_BYTE = 8;
 const u8 FREE = 0;
@@ -223,7 +224,8 @@ void write_superblock(int file_desc) {
   superblock.s_max_mnt_count = -1;       /* Make this unlimited */
   superblock.s_magic = EXT2_SUPER_MAGIC; /* ext2 Signature */
   superblock.s_state = 1;                /* File system is clean */
-  superblock.s_errors = 0;               /* Ignore the error (continue on) */
+  superblock.s_errors =
+      EXT2_ERRORS_CONTINUE;              /* Ignore the error (continue on) */
   superblock.s_minor_rev_level = 0;      /* Leave this as 0 */
   superblock.s_lastcheck = current_time; /* Last check time */
   superblock.s_checkinterval =
